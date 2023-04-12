@@ -62,16 +62,6 @@ void delete_temperature_field(int nx, int ny, temp_t*** t){
   free(t);
 }
 
-double* linspace(int lo, int hi, int n){
-  if(n <= 1)
-    return NULL;
-  double* vals = (double*) malloc(sizeof(double)*n);
-  double step = (double)(hi - lo)/ (n - 1);
-  for(int i = 0; i < n; ++i)
-    vals[i] = lo + step*i;
-  return vals;
-}
-
 char* get_specific_color(double num){
   if(0 <= num && num <= 273)
     return BLK;
@@ -110,6 +100,12 @@ void draw_cells(char* c, temp_t*** temp_field, int nx, int ny, int ti){
   }
 }
 
+void impose_dirichlet_bc(temp_t*** tf, int ix, int iy, int t_num, int temp){
+  for(int t = 0; t < t_num; ++t){
+    tf[ix][iy]->series[t] = temp;
+  }
+}
+
 int main(){
   /* Physical params */
   double k = 1.172e-5; // for steel with 1% carbon
@@ -122,17 +118,19 @@ int main(){
   int ny = win.rows; // num points in y direction
   printf("%d, %d\n", nx, ny);
   double dt = 0.1; // time step
-  double tf = 1000.0; // final time
+  double tf = 10000.0; // final time
                     //
   /* Draw param */
-  //int frame_update_delay = 4096*8;
-  int frame_update_delay = 0;
-  char* blk_sym = "■";
   //char* blk_sym = "█";
+  //int frame_update_delay = 4096*8;
+  //int update_screen_num_t = 500;
+  char* blk_sym = "■";
+  int frame_update_delay = 0;
+  int update_screen_num_t = 500;
            
   /* Boundary conditions (Dirichlet) */
   int temp0 = 273; // K at time T = 0
-  int temp1 = 273; // Top Boundary
+  int temp1 = 1000; // Top Boundary
   int temp2 = 273; // Bottom Boundary
   int temp3 = 1000; // Left Boundary
   int temp4 = 273; // Right Boundary
@@ -156,33 +154,23 @@ int main(){
   temp_t*** temp_field = initialize_temperature_field(nx, ny, num_tsteps);
 
   /* set initial condition */
-  for(int i = 0; i < nx - 1; ++i)
-    for(int j = 0; j < ny - 1; ++j)
+  for(int i = 0; i < nx; ++i)
+    for(int j = 0; j < ny; ++j)
       temp_field[i][j]->series[0] = temp0;
 
   /* set boundary conditions */
 
   /* Top and Bottom */
   for(int i = 0; i < nx; ++i){
-    for(int t = 0; t < num_tsteps; ++t){
-      temp_field[i][0]->series[t] = temp1;
-      temp_field[i][ny-1]->series[t] = temp2;
-    }
+    impose_dirichlet_bc(temp_field, i, 0, num_tsteps, temp1);
+    impose_dirichlet_bc(temp_field, i, ny-1, num_tsteps, temp2);
   }
   
   /* Left and Right */
   for(int j = 0; j < ny; ++j){
-    for(int t = 0; t < num_tsteps; ++t){
-      temp_field[0][j]->series[t] = temp3;
-      temp_field[nx-1][j]->series[t] = temp4;
-    }
+    impose_dirichlet_bc(temp_field, 0, j, num_tsteps, temp3);
+    impose_dirichlet_bc(temp_field, nx-1, j, num_tsteps, temp4);
   }
-
-  /* Generate 2d mesh */
-  //double* line_x = linspace(0, lx, nx);
-  //double* line_y = linspace(0, ly, ny);
-  //double** mesh_x = generate_mesh(line_x, nx, ny, 0);
-  //double** mesh_y = generate_mesh(line_y, nx, ny, 1);
   
   system("clear");
   /* Main time-loop */
@@ -200,17 +188,13 @@ int main(){
         temp_field[i][j]->series[t+1] = k*dt*(d2_temp_dx2 + d2_temp_dy2) + temp_field[i][j]->series[t];
       }
     }
-    draw_cells(blk_sym, temp_field, nx, ny, t);
-    usleep(frame_update_delay);
+    if(!(t%update_screen_num_t)){
+      draw_cells(blk_sym, temp_field, nx, ny, t);
+      usleep(frame_update_delay);
+    }
   }
-
- // for(int t = 0; t < temp_field[1][2]->num_snapshots; ++t)
- //   printf("%f\n", temp_field[1][2]->series[t]);
 
   /* free temperature field and associated series */
   delete_temperature_field(nx, ny, temp_field);
-  /* free other dynamically allocated variables */
-  //free(line_x);
-  //free(line_y);
   return 0;
 }
