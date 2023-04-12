@@ -126,7 +126,7 @@ int main(){
   //int update_screen_num_t = 500;
   char* blk_sym = "■";
   int frame_update_delay = 0;
-  int update_screen_num_t = 500;
+  int update_screen_num_t = 100;
            
   /* Boundary conditions (Dirichlet) */
   int temp0 = 273; // K at time T = 0
